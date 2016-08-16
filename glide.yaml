@@ -41,6 +41,8 @@ import:
     version: v1.2.2
     repo:    https://github.com/aws/aws-sdk-go
 
+### OpenStack
+  - package: github.com/rackspace/gophercloud
 
 ################################################################################
 ##                             Build System Tools                             ##
