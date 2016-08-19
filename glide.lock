@@ -67,20 +67,21 @@ imports:
   subpackages:
   - difflib
 - name: github.com/rackspace/gophercloud
-  version: 0d8599924d296da0f172489ecddf51e4066c329a
+  version: c90cb954266e1bdd6d1914678fd6909fc5fabbfa
   subpackages:
   - openstack
   - openstack/blockstorage/v1/snapshots
   - openstack/blockstorage/v2/extensions/volumeactions
   - openstack/blockstorage/v2/volumes
   - openstack/compute/v2/extensions/volumeattach
-  - openstack/identity/v2/tenants
-  - openstack/identity/v2/tokens
+  - openstack/identity/v3/extensions/trust
   - openstack/identity/v3/tokens
+  - openstack/identity/v2/tokens
   - openstack/utils
   - pagination
   - testhelper
   - testhelper/client
+  - openstack/identity/v2/tenants
 - name: github.com/Sirupsen/logrus
   version: 5f376aa629ac60c3215cc368e674bd996093a01a
   repo: https://github.com/akutz/logrus

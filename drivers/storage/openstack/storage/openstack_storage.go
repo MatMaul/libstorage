@@ -17,6 +17,8 @@ import (
 	"github.com/rackspace/gophercloud/openstack/blockstorage/v2/extensions/volumeactions"
 	"github.com/rackspace/gophercloud/openstack/blockstorage/v2/volumes"
 	"github.com/rackspace/gophercloud/openstack/compute/v2/extensions/volumeattach"
+	"github.com/rackspace/gophercloud/openstack/identity/v3/extensions/trust"
+	token3 "github.com/rackspace/gophercloud/openstack/identity/v3/tokens"
 )
 
 type driver struct {
@@ -90,8 +92,25 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 	fields["domainId"] = d.domainID()
 	fields["domainName"] = d.domainName()
 
-	if d.provider, err = openstack.AuthenticatedClient(authOpts); err != nil {
-		return goof.WithFieldsE(fields, "error getting authenticated client", err)
+	trustId := d.trustID()
+	fields["trustId"] = trustId
+
+	d.provider, err = openstack.NewClient(authOpts.IdentityEndpoint)
+	if err != nil {
+		return goof.WithFieldsE(fields, "error creating Keystone client", err)
+	}
+
+	if trustId != "" {
+		authOptionsExt := trust.AuthOptionsExt{
+			TrustID:     trustId,
+			AuthOptions: token3.AuthOptions{AuthOptions: authOpts},
+		}
+		err = trust.AuthenticateV3Trust(d.provider, authOptionsExt)
+	} else {
+		err = openstack.Authenticate(d.provider, authOpts)
+	}
+	if err != nil {
+		return goof.WithFieldsE(fields, "error authenticating", err)
 	}
 
 	if d.clientCompute, err = openstack.NewComputeV2(d.provider, endpointOpts); err != nil {
@@ -570,4 +589,8 @@ func (d *driver) regionName() string {
 
 func (d *driver) availabilityZoneName() string {
 	return d.config.GetString("openstack.availabilityZoneName")
+}
+
+func (d *driver) trustID() string {
+	return d.config.GetString("openstack.trustID")
 }
