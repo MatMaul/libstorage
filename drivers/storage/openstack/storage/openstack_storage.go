@@ -19,7 +19,16 @@ import (
 	"github.com/rackspace/gophercloud/openstack/compute/v2/extensions/volumeattach"
 	"github.com/rackspace/gophercloud/openstack/identity/v3/extensions/trust"
 	token3 "github.com/rackspace/gophercloud/openstack/identity/v3/tokens"
+	"github.com/rackspace/gophercloud/rackspace"
+	rackspace_snapshots "github.com/rackspace/gophercloud/rackspace/blockstorage/v1/snapshots"
+	rackspace_volumes_v1 "github.com/rackspace/gophercloud/rackspace/blockstorage/v1/volumes"
 )
+
+type genericVolume struct {
+	// abstract v1 vs v2 volume, only one field of this struct should be non nil
+	v1 *rackspace_volumes_v1.Volume
+	v2 *volumes.Volume
+}
 
 type driver struct {
 	provider             *gophercloud.ProviderClient
@@ -28,6 +37,7 @@ type driver struct {
 	clientBlockStoragev2 *gophercloud.ServiceClient
 	availabilityZone     string
 	config               gofig.Config
+	rackspace            bool
 }
 
 func ef() goof.Fields {
@@ -50,6 +60,58 @@ func eff(fields goof.Fields) map[string]interface{} {
 
 func init() {
 	registry.RegisterStorageDriver(openstackdriver.Name, newDriver)
+}
+
+func (d *driver) newClient(endpoint string) (*gophercloud.ProviderClient, error) {
+	if d.rackspace {
+		return rackspace.NewClient(endpoint)
+	} else {
+		return openstack.NewClient(endpoint)
+	}
+}
+
+func (d *driver) authenticate(client *gophercloud.ProviderClient, options gophercloud.AuthOptions, trustID string) error {
+	if d.rackspace {
+		return rackspace.Authenticate(client, options)
+	} else {
+		if trustID != "" {
+			authOptionsExt := trust.AuthOptionsExt{
+				TrustID:     trustID,
+				AuthOptions: token3.AuthOptions{AuthOptions: options},
+			}
+			return trust.AuthenticateV3Trust(d.provider, authOptionsExt)
+		} else {
+			return openstack.Authenticate(d.provider, options)
+		}
+	}
+}
+
+
+func (d *driver) initClients(endpointOpts gophercloud.EndpointOpts) error {
+	if d.rackspace {
+		var err error
+		if d.clientCompute, err = rackspace.NewComputeV2(d.provider, endpointOpts); err != nil {
+			return goof.WithError("error getting newComputeV2", err)
+		}
+
+		if d.clientBlockStorage, err = rackspace.NewBlockStorageV1(d.provider, endpointOpts); err != nil {
+			return goof.WithError("error getting newBlockStorageV1", err)
+		}
+	} else {
+		var err error
+		if d.clientCompute, err = openstack.NewComputeV2(d.provider, endpointOpts); err != nil {
+			return goof.WithError("error getting newComputeV2", err)
+		}
+
+		if d.clientBlockStorage, err = openstack.NewBlockStorageV1(d.provider, endpointOpts); err != nil {
+			return goof.WithError("error getting newBlockStorageV1", err)
+		}
+
+		if d.clientBlockStoragev2, err = openstack.NewBlockStorageV2(d.provider, endpointOpts); err != nil {
+			return goof.WithError("error getting newBlockStorageV2", err)
+		}
+	}
+	return nil
 }
 
 func newDriver() types.StorageDriver {
@@ -95,34 +157,19 @@ func (d *driver) Init(context types.Context, config gofig.Config) error {
 	trustID := d.trustID()
 	fields["trustId"] = trustID
 
-	d.provider, err = openstack.NewClient(authOpts.IdentityEndpoint)
+	d.provider, err = d.newClient(authOpts.IdentityEndpoint)
 	if err != nil {
 		return goof.WithFieldsE(fields, "error creating Keystone client", err)
 	}
 
-	if trustID != "" {
-		authOptionsExt := trust.AuthOptionsExt{
-			TrustID:     trustID,
-			AuthOptions: token3.AuthOptions{AuthOptions: authOpts},
-		}
-		err = trust.AuthenticateV3Trust(d.provider, authOptionsExt)
-	} else {
-		err = openstack.Authenticate(d.provider, authOpts)
-	}
+	err = d.authenticate(d.provider, authOpts, trustID)
 	if err != nil {
 		return goof.WithFieldsE(fields, "error authenticating", err)
 	}
 
-	if d.clientCompute, err = openstack.NewComputeV2(d.provider, endpointOpts); err != nil {
-		return goof.WithFieldsE(fields, "error getting newComputeV2", err)
-	}
-
-	if d.clientBlockStorage, err = openstack.NewBlockStorageV1(d.provider, endpointOpts); err != nil {
-		return goof.WithFieldsE(fields, "error getting newBlockStorageV1", err)
-	}
-
-	if d.clientBlockStoragev2, err = openstack.NewBlockStorageV2(d.provider, endpointOpts); err != nil {
-		return goof.WithFieldsE(fields, "error getting newBlockStorageV2", err)
+	err = d.initClients(endpointOpts)
+	if err != nil {
+		return goof.WithFieldsE(fields, "error initializing clients", err)
 	}
 
 	context.WithFields(fields).Info("storage driver initialized")
@@ -193,7 +240,7 @@ func (d *driver) VolumeInspect(
 		return nil, goof.New("no volumeID specified")
 	}
 
-	volume, err := volumes.Get(d.clientBlockStoragev2, volumeID).Extract()
+	volume, err := d.getVolume(volumeID)
 
 	if err != nil {
 		return nil,
@@ -203,29 +250,77 @@ func (d *driver) VolumeInspect(
 	return translateVolume(volume, opts.Attachments), nil
 }
 
-func translateVolume(volume *volumes.Volume, includeAttachments bool) *types.Volume {
-	var attachments []*types.VolumeAttachment
-	if includeAttachments {
-		for _, attachment := range volume.Attachments {
-			libstorageAttachment := &types.VolumeAttachment{
-				VolumeID:   attachment["volume_id"].(string),
-				InstanceID: &types.InstanceID{ID: attachment["server_id"].(string), Driver: openstackdriver.Name},
-				DeviceName: attachment["device"].(string),
-				Status:     "",
-			}
-			attachments = append(attachments, libstorageAttachment)
+func (d *driver) getVolume(volumeID string) (*genericVolume, error) {
+	if d.rackspace {
+		volume, err := rackspace_volumes_v1.Get(d.clientBlockStorage, volumeID).Extract()
+		if err != nil {
+			return nil, err
 		}
+		return &genericVolume{
+			v1: volume,
+		}, nil
+	} else {
+		volume, err := volumes.Get(d.clientBlockStoragev2, volumeID).Extract()
+		if err != nil {
+			return nil, err
+		}
+		return &genericVolume{
+			v2: volume,
+		}, nil
 	}
+}
 
-	return &types.Volume{
-		Name:             volume.Name,
-		ID:               volume.ID,
-		AvailabilityZone: volume.AvailabilityZone,
-		Status:           volume.Status,
-		Type:             volume.VolumeType,
-		IOPS:             0,
-		Size:             int64(volume.Size),
-		Attachments:      attachments,
+func translateVolume(genericVolume *genericVolume, includeAttachments bool) *types.Volume {
+	if genericVolume.v2 != nil {
+		volume := genericVolume.v2
+		var attachments []*types.VolumeAttachment
+		if includeAttachments {
+			for _, attachment := range volume.Attachments {
+				libstorageAttachment := &types.VolumeAttachment{
+					VolumeID:   attachment["volume_id"].(string),
+					InstanceID: &types.InstanceID{ID: attachment["server_id"].(string), Driver: openstackdriver.Name},
+					DeviceName: attachment["device"].(string),
+					Status:     "",
+				}
+				attachments = append(attachments, libstorageAttachment)
+			}
+		}
+
+		return &types.Volume{
+			Name:             volume.Name,
+			ID:               volume.ID,
+			AvailabilityZone: volume.AvailabilityZone,
+			Status:           volume.Status,
+			Type:             volume.VolumeType,
+			IOPS:             0,
+			Size:             int64(volume.Size),
+			Attachments:      attachments,
+		}
+	} else {
+		volume := genericVolume.v1
+		var attachments []*types.VolumeAttachment
+		if includeAttachments {
+			for _, attachment := range volume.Attachments {
+				libstorageAttachment := &types.VolumeAttachment{
+					VolumeID:   attachment["volume_id"].(string),
+					InstanceID: &types.InstanceID{ID: attachment["server_id"].(string), Driver: openstackdriver.Name},
+					DeviceName: attachment["device"].(string),
+					Status:     "",
+				}
+				attachments = append(attachments, libstorageAttachment)
+			}
+		}
+
+		return &types.Volume{
+			Name:             volume.Name,
+			ID:               volume.ID,
+			AvailabilityZone: volume.AvailabilityZone,
+			Status:           volume.Status,
+			Type:             volume.VolumeType,
+			IOPS:             0,
+			Size:             int64(volume.Size),
+			Attachments:      attachments,
+		}
 	}
 }
 
@@ -238,7 +333,14 @@ func (d *driver) SnapshotInspect(
 		"snapshotId": snapshotID,
 	})
 
-	snapshot, err := snapshots.Get(d.clientBlockStorage, snapshotID).Extract()
+
+	var snapshot snapshots.Snapshot
+	var err error
+	if d.rackspace {
+		snapshot, err = rackspace_snapshots.Get(d.clientBlockStorage, snapshotID).Extract()
+	} else {
+		snapshot, err = snapshots.Get(d.clientBlockStorage, snapshotID).Extract()
+	}
 	if err != nil {
 		return nil,
 			goof.WithFieldsE(fields, "error getting snapshot", err)
@@ -302,7 +404,13 @@ func (d *driver) VolumeSnapshot(
 		Force:    true,
 	}
 
-	snapshot, err := snapshots.Create(d.clientBlockStorage, createOpts).Extract()
+	var snapshot snapshots.Snapshot
+	var err error
+	if d.rackspace {
+		snapshot, err = rackspace_snapshots.Create(d.clientBlockStorage, createOpts).Extract()
+	} else {
+		snapshot, err = snapshots.Create(d.clientBlockStorage, createOpts).Extract()
+	}
 	if err != nil {
 		return nil,
 			goof.WithFieldsE(fields, "error creating snapshot", err)
@@ -399,7 +507,14 @@ func (d *driver) createVolume(
 		AvailabilityZone: availabilityZone,
 		SourceReplica:    volumeSourceID,
 	}
-	volume, err := volumes.Create(d.clientBlockStoragev2, options).Extract()
+	var volume genericVolume
+	var err error
+	if d.rackspace {
+		volume, err = rackspace_volumes_v1.Create(d.clientBlockStorage, options).Extract()
+	} else {
+		volume, err = volumes.Create(d.clientBlockStoragev2, options).Extract()
+	}
+
 	if err != nil {
 		return nil,
 			goof.WithFieldsE(fields, "error creating volume", err)
@@ -428,7 +543,14 @@ func (d *driver) VolumeRemove(
 	if volumeID == "" {
 		return goof.WithFields(fields, "volumeId is required")
 	}
-	res := volumes.Delete(d.clientBlockStoragev2, volumeID)
+
+	var res volumes.DeleteResult
+	if d.rackspace {
+		res = rackspace_volumes_v1.Delete(d.clientBlockStorage, volumeID)
+	} else {
+		res = volumes.Delete(d.clientBlockStoragev2, volumeID)
+	}
+
 	if res.Err != nil {
 		return goof.WithFieldsE(fields, "error removing volume", res.Err)
 	}
