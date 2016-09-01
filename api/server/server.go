@@ -26,6 +26,7 @@ import (
 
 	// imported to load remote storage drivers
 	_ "github.com/emccode/libstorage/imports/remote"
+	"github.com/akutz/goof"
 )
 
 var (
@@ -146,6 +147,7 @@ func newServer(goCtx gocontext.Context, config gofig.Config) (*server, error) {
 func Serve(
 	goCtx gocontext.Context,
 	config gofig.Config) (types.Server, <-chan error, error) {
+	goof.IncludeFieldsInError = true
 
 	s, err := newServer(goCtx, config)
 	if err != nil {

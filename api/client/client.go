@@ -5,9 +5,11 @@ import (
 
 	"github.com/emccode/libstorage/api/context"
 	"github.com/emccode/libstorage/api/types"
+	"github.com/akutz/goof"
 )
 
 func init() {
+	goof.IncludeFieldsInError = true
 	context.RegisterCustomKey(transactionHeaderKey, context.CustomHeaderKey)
 	context.RegisterCustomKey(instanceIDHeaderKey, context.CustomHeaderKey)
 	context.RegisterCustomKey(localDevicesHeaderKey, context.CustomHeaderKey)
