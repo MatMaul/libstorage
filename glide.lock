@@ -1,5 +1,5 @@
-hash: 424a486e4a16c05581e186461d986ab02e0964478df01f879a57b26cc2b35cea
-updated: 2016-09-13T14:47:32.738032789-07:00
+hash: 69e96f70714b3dcb1af259f065f31f54e73bc5c0be1ccaaee6351186e28603ad
+updated: 2016-09-16T12:07:02.229582004+02:00
 imports:
 - name: github.com/akutz/gofig
   version: 697c16916338166671910eeaccc50f21e3c10726
@@ -132,6 +132,20 @@ imports:
 - name: github.com/go-yaml/yaml
   version: b4a9f8c4b84c6c4256d669c649837f1441e4b050
   repo: https://github.com/akutz/yaml.git
+- name: github.com/gophercloud/gophercloud
+  version: f464c963e383ef8e0f8886c52bb1139a49a1ffa7
+  subpackages:
+  - openstack
+  - openstack/blockstorage/v1/snapshots
+  - openstack/blockstorage/v2/extensions/volumeactions
+  - openstack/blockstorage/v2/volumes
+  - openstack/compute/v2/extensions/volumeattach
+  - openstack/identity/v3/extensions/trusts
+  - openstack/identity/v2/tokens
+  - openstack/identity/v3/tokens
+  - openstack/utils
+  - pagination
+  - openstack/identity/v2/tenants
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
