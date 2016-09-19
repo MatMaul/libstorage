@@ -1,5 +1,5 @@
-hash: 69e96f70714b3dcb1af259f065f31f54e73bc5c0be1ccaaee6351186e28603ad
-updated: 2016-09-16T12:07:02.229582004+02:00
+hash: 22caee0f70532e90b9f01ef26729466552080494c501a9fc61deb55a64f5177a
+updated: 2016-09-19T11:16:37.773342577+02:00
 imports:
 - name: github.com/akutz/gofig
   version: 697c16916338166671910eeaccc50f21e3c10726
@@ -22,11 +22,12 @@ imports:
   repo: https://github.com/aws/aws-sdk-go
   subpackages:
   - aws
-  - aws/awserr
   - aws/credentials
   - aws/credentials/ec2rolecreds
   - aws/ec2metadata
   - aws/session
+  - service/ec2
+  - aws/awserr
   - service/efs
   - aws/client
   - aws/client/metadata
@@ -37,8 +38,12 @@ imports:
   - aws/awsutil
   - aws/signer/v4
   - private/protocol
+  - private/protocol/ec2query
+  - private/waiter
   - private/protocol/restjson
   - private/protocol/rest
+  - private/protocol/query/queryutil
+  - private/protocol/xml/xmlutil
   - private/protocol/jsonrpc
   - private/protocol/json/jsonutil
 - name: github.com/BurntSushi/toml
@@ -69,64 +74,6 @@ imports:
   version: 3bd901de15097583a5b1f4b377421cfc647c3664
   subpackages:
   - logrus
-- name: github.com/emccode/libstorage
-  version: 3b926eb1e2cdb7d23517d3243d4f38b6ad0e6be1
-  subpackages:
-  - api/server
-  - api/types
-  - client
-  - api/context
-  - api/utils
-  - api
-  - api/registry
-  - api/server/handlers
-  - api/server/services
-  - api/utils/config
-  - imports/remote
-  - imports/routers
-  - api/server/httputils
-  - api/utils/schema
-  - api/server/executors
-  - api/server/router/volume
-  - api/utils/filters
-  - imports/config
-  - cli/lss
-  - imports/executors
-  - cli/lsx
-  - imports/local
-  - drivers/storage/efs
-  - drivers/storage/isilon
-  - api/client
-  - drivers/storage/mock/executor
-  - drivers/storage/rackspace
-  - drivers/storage/scaleio
-  - drivers/storage/vbox
-  - drivers/storage/vfs
-  - drivers/storage/efs/executor
-  - drivers/storage/isilon/executor
-  - drivers/storage/rackspace/executor
-  - drivers/storage/scaleio/executor
-  - drivers/storage/vbox/executor
-  - drivers/storage/vfs/executor
-  - drivers/integration/docker
-  - drivers/os/darwin
-  - drivers/os/linux
-  - drivers/storage/libstorage
-  - drivers/storage/vfs/client
-  - drivers/storage/efs/storage
-  - drivers/storage/isilon/storage
-  - drivers/storage/rackspace/storage
-  - drivers/storage/scaleio/storage
-  - drivers/storage/vbox/storage
-  - drivers/storage/vfs/storage
-  - api/server/router/executor
-  - api/server/router/help
-  - api/server/router/root
-  - api/server/router/service
-  - api/server/router/snapshot
-  - api/server/router/tasks
-  - api/tests
-  - drivers/storage/mock
 - name: github.com/go-ini/ini
   version: 6e4869b434bd001f6983749881c7ead3545887d8
 - name: github.com/go-yaml/yaml
@@ -137,6 +84,7 @@ imports:
   subpackages:
   - openstack
   - openstack/blockstorage/v1/snapshots
+  - openstack/blockstorage/v1/volumes
   - openstack/blockstorage/v2/extensions/volumeactions
   - openstack/blockstorage/v2/volumes
   - openstack/compute/v2/extensions/volumeattach
@@ -204,7 +152,7 @@ imports:
   subpackages:
   - assert
 - name: golang.org/x/net
-  version: 749a502dd1eaf3e5bfd4f8956748c502357c0bbe
+  version: 71a035914f99bb58fe82eac0f1289f10963d876c
   subpackages:
   - context
   - context/ctxhttp
