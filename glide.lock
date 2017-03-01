@@ -83,6 +83,21 @@ imports:
   version: fd9ec7deca8bf46ecd2a795baaacf2b3a9be1197
 - name: github.com/go-ini/ini
   version: 6e4869b434bd001f6983749881c7ead3545887d8
+- name: github.com/gophercloud/gophercloud
+  version: d5eda9707e146108e4d424062b602fd97a71c2e6
+  subpackages:
+  - openstack
+  - openstack/blockstorage/extensions/volumeactions
+  - openstack/blockstorage/v1/snapshots
+  - openstack/blockstorage/v1/volumes
+  - openstack/blockstorage/v2/volumes
+  - openstack/compute/v2/extensions/volumeattach
+  - openstack/identity/v3/extensions/trusts
+  - openstack/identity/v2/tokens
+  - openstack/identity/v3/tokens
+  - openstack/utils
+  - pagination
+  - openstack/identity/v2/tenants
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/mux
@@ -153,7 +168,7 @@ imports:
 - name: github.com/spf13/jwalterweatherman
   version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
 - name: github.com/spf13/pflag
-  version: 5ccb023bc27df288a957c5e994cd44fd19619465
+  version: b084184666e02084b8ccb9b704bf0d79c466eb1d
 - name: github.com/spf13/viper
   version: 651d9d916abc3c3d6a91a12549495caba5edffd2
 - name: github.com/stretchr/testify
