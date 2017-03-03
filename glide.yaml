@@ -23,6 +23,7 @@ import:
   - package: github.com/codedellemc/gournal
     version: v0.3.0
   - package: github.com/cesanta/validate-json
+  - package: github.com/opencontainers/runc/libcontainer/selinux
 
 
 ################################################################################

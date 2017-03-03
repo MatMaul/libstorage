@@ -16,6 +16,7 @@ import (
 	"github.com/codedellemc/libstorage/api/types"
 	"github.com/codedellemc/libstorage/api/utils"
 	apiconfig "github.com/codedellemc/libstorage/api/utils/config"
+	"github.com/opencontainers/runc/libcontainer/selinux"
 )
 
 const (
@@ -43,6 +44,35 @@ func (v *volumeMapping) MountPoint() string {
 
 func (v *volumeMapping) Status() map[string]interface{} {
 	return v.VolumeStatus
+}
+
+// Relabel changes the label of path to the filelabel string.
+// It changes the MCS label to s0 if shared is true.
+// This will allow all containers to share the content.
+func Relabel(path string, fileLabel string, shared bool) error {
+	if !selinux.SelinuxEnabled() {
+		return nil
+	}
+
+	if fileLabel == "" {
+		return nil
+	}
+
+	exclude_paths := map[string]bool{"/": true, "/usr": true, "/etc": true}
+	if exclude_paths[path] {
+		return fmt.Errorf("SELinux relabeling of %s is not allowed", path)
+	}
+
+	if shared {
+		c := selinux.NewContext(fileLabel)
+		c["level"] = "s0"
+		fileLabel = c.Get()
+	}
+
+	if err := selinux.Chcon(path, fileLabel, true); err != nil {
+		return fmt.Errorf("SELinux relabeling of %s is not allowed: %q", path, err)
+	}
+	return nil
 }
 
 func init() {
@@ -301,6 +331,8 @@ func (d *driver) Mount(
 	}
 
 	mntPath := d.volumeMountPath(mountPath)
+
+	Relabel(mntPath, "system_u:object_r:svirt_sandbox_file_t:s0", true)
 
 	fields := log.Fields{
 		"vol":     vol,

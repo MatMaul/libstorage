@@ -1,5 +1,5 @@
-hash: ed354c2eec9c28b2402031632c7ead0ee6cd9bb5c58cb489c76f5a64db8374aa
-updated: 2017-04-05T22:00:02.724882103+02:00
+hash: 8da738b75a8c2d115fd496a05da996ce7795c1e6f17915866e4d84d1506306e8
+updated: 2017-04-05T22:03:53.207460805+02:00
 imports:
 - name: cloud.google.com/go
   version: e4de3dc4493f142c5833f3185e1182025a61f805
@@ -153,13 +153,18 @@ imports:
   version: 1dd44b25b79c4d9060e582e90798e4d72537818c
   repo: https://github.com/akutz/go-bindata
 - name: github.com/kardianos/osext
-  version: 9b883c5eb462dd5cb1b0a7a104fe86bc6b9bd391
+  version: 9d302b58e975387d0b4d9be876622c86cefe64be
   repo: https://github.com/kardianos/osext.git
   vcs: git
 - name: github.com/magiconair/properties
   version: b3b15ef068fd0b17ddf408a23669f20811d194d2
 - name: github.com/mitchellh/mapstructure
   version: db1efb556f84b25a0a13a04aad883943538ad2e0
+- name: github.com/opencontainers/runc
+  version: dcbcdf2470421e911211604c61ea3e8ca740d346
+  subpackages:
+  - libcontainer/selinux
+  - libcontainer/system
 - name: github.com/pelletier/go-buffruneio
   version: df1e16fde7fc330a0ca68167c23bf7ed6ac31d6d
 - name: github.com/pelletier/go-toml
