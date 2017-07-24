@@ -412,15 +412,6 @@ func unmarshalLocalDevices(
 		return nil, err
 	}
 
-	// remove any local devices that has no mapped volume information
-	for k, v := range ld.DeviceMap {
-		if len(v) == 0 {
-			ctx.WithField("deviceID", k).Warn(
-				"removing local device w/ invalid volume id")
-			delete(ld.DeviceMap, k)
-		}
-	}
-
 	return ld, nil
 }
 
